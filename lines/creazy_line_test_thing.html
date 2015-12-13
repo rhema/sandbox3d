@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				font-family: Monospace;
+				background-color: #f0f0f0;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+	</head>
+	<body>
+
+		<script src="../libs/three.js"></script>
+
+		<script src="../libs/optimization.js"></script>
+
+		<script src="../libs/stats.min.js"></script>
+
+		<script>
+
+			var container, stats;
+			var camera, scene, raycaster, renderer, parentTransform, sphereInter;
+
+			var mouse = new THREE.Vector2();
+			var radius = 100, theta = 0;
+
+			var currentIntersected;
+
+			
+			function oldInit()
+			{
+				
+			for ( var i = 0; i < 2; i ++ ) {	
+
+					direction.x += Math.random() - 0.5;
+					direction.y += Math.random() - 0.5;
+					direction.z += Math.random() - 0.5;
+					
+					
+					
+					direction.x = 0;//Math.random() - 0.5;
+					direction.y = 0;//Math.random() - 0.5;
+					direction.z = 1;//Math.random() - 0.5;//pointing,but not really
+					
+					direction.normalize().multiplyScalar( 10 ); //how long
+
+					point.add( direction );
+
+					geometry.vertices.push( point.clone() );
+
+				}
+
+				parentTransform = new THREE.Object3D();
+				parentTransform.position.x = Math.random() * 40 - 20;
+				parentTransform.position.y = Math.random() * 40 - 20;
+				parentTransform.position.z = Math.random() * 40 - 20;
+
+				//parentTransform.rotation.x = Math.random() * 2 * Math.PI;
+				//parentTransform.rotation.y = Math.random() * 2 * Math.PI;
+				//parentTransform.rotation.z = Math.random() * 2 * Math.PI;
+
+				parentTransform.scale.x = Math.random() + 0.5;
+				parentTransform.scale.y = Math.random() + 0.5;
+				parentTransform.scale.z = Math.random() + 0.5;
+
+				for ( var i = 0; i < 50; i ++ ) {
+
+					var object;
+
+					if ( Math.random() > 0.5 ) {
+
+						object = new THREE.Line( geometry );//creates the actual line...sometimes
+
+					} else {
+
+						object = new THREE.LineSegments( geometry );//sometimes creates ne sline i guess
+
+					}
+
+					object.position.x = Math.random() * 400 - 200;
+					object.position.y = Math.random() * 400 - 200;
+					object.position.z = Math.random() * 400 - 200;
+
+			//		object.rotation.x = Math.random() * 2 * Math.PI;
+			//		object.rotation.y = Math.random() * 2 * Math.PI;
+			//		object.rotation.z = Math.random() * 2 * Math.PI;
+
+					object.scale.x = Math.random() + 0.5;
+					object.scale.y = Math.random() + 0.5;
+					object.scale.z = Math.random() + 0.5;
+
+					parentTransform.add( object );
+
+				}
+
+				
+			}
+			
+			var totalSegments = 20;
+			var lengthPerSegment = 5;
+			// var waitTil = 20;
+			var segmentRotations = [];//start with 0s...
+			for(var i=0;i<totalSegments; i+=1)
+			{
+				segmentRotations.push(0);
+			}
+			var tada = segmentRotations;
+			var icount = 0;
+			
+			function repositionThing()
+			{
+				icount+=1;
+				theObject.material.linewidth = 5;
+				// theObject.material.color.g = .95;
+				// theObject.material.color.r = .5;
+				// theObject.material.color.b = .5;
+				oldRotations = segmentRotations;
+				var costfunc = function(segmentRotations)
+				{
+					//also add error for changes in other positions..
+					
+					var angleGross = 0;
+					
+					error = 0;
+					serr = 0;
+					anew = 0;
+					var x=theObject.geometry.vertices[0].x;
+					var y=theObject.geometry.vertices[0].y;
+					var trot = 0;
+					
+					
+					for(var i=0;i<totalSegments; i+=1)
+					{
+						rot = segmentRotations[i];
+						if(i != 0)
+						{
+							angleGross += Math.abs(rot - segmentRotations[i-1]);
+							 
+						} 
+						anew +  (segmentRotations[i] - oldRotations[i])*(segmentRotations[i] - oldRotations[i]);
+						trot += rot;
+						x += Math.sin(trot)*lengthPerSegment;
+						y += Math.cos(trot)*lengthPerSegment;
+						
+						//error += Math.abs( theObject.geometry.vertices[i+1].x - x );
+						//error += Math.abs( theObject.geometry.vertices[i+1].y - y );
+						xerr = Math.abs( theObject.geometry.vertices[i+1].x - x );
+						yerr = Math.abs( theObject.geometry.vertices[i+1].y - y );
+						serr += (xerr*xerr + yerr*yerr);
+					}
+					
+					xerr = Math.abs( sphereInter.position.x - x );
+					yerr = Math.abs( sphereInter.position.y - y );
+					gerr = (xerr*xerr + yerr*yerr);
+					error = gerr*5 + serr*.1 + angleGross*.1+anew*0;
+					
+					return error;
+				}; //compare x of end with mouse...
+				//optimjs.minimize_Powell
+				//
+				// if(icount % waitTil == 0)
+				var diff_diff = 0;
+				for(var i=0;i<totalSegments; i+=1)
+				{
+					diff_diff += Math.abs( tada[i] - segmentRotations[i]);
+				}
+				
+				if(diff_diff < 5)
+					tada = optimjs.minimize_Powell(costfunc,segmentRotations)['argument'];
+				
+				for(var i=0;i<totalSegments; i+=1)
+				{
+					segmentRotations[i] = tada[i]*.05 + segmentRotations[i]*.95;
+				}
+     		 	
+			
+			
+
+				
+				var x=theObject.geometry.vertices[0].x;
+				var y=theObject.geometry.vertices[0].y;
+				var trot = 0;
+				
+				for(var i=0;i<totalSegments; i+=1)
+				{
+					rot = segmentRotations[i];
+					trot += rot;
+					x+= Math.sin(trot)*lengthPerSegment;
+					theObject.geometry.vertices[i+1].x = x;
+					y += Math.cos(trot)*lengthPerSegment;
+					theObject.geometry.vertices[i+1].y = y;
+				}
+				theObject.geometry.verticesNeedUpdate = true;
+			}
+			
+			
+			var theObject;
+			
+
+			function init() {
+
+				container = document.createElement( 'div' );
+				document.body.appendChild( container );
+
+				var info = document.createElement( 'div' );
+				info.style.position = 'absolute';
+				info.style.top = '10px';
+				info.style.width = '100%';
+				info.style.textAlign = 'center';
+				info.innerHTML = '';
+				container.appendChild( info );
+
+				camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 1, 10000 );
+
+				scene = new THREE.Scene();
+
+				var geometry = new THREE.SphereGeometry( 2 );
+				var material = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+
+				sphereInter = new THREE.Mesh( geometry, material );
+				sphereInter.visible = false;
+				scene.add( sphereInter );
+
+				var geometry = new THREE.Geometry();
+
+				var point = new THREE.Vector3();
+				var direction = new THREE.Vector3();//good but nah
+
+
+				
+				//go from 0 to some other thing...
+					// point.add( direction );
+					// geometry.vertices.push( point.clone() );
+				// for ( var i = 0; i < 50; i ++ ) {
+				geometry.vertices.push(  new THREE.Vector3(0,0,0) );
+				for(var j=0;j<totalSegments; j+=1)
+				{
+					console.log(i);
+					geometry.vertices.push(  new THREE.Vector3(0,(i+1)*lengthPerSegment,0) );
+				}
+				//Keep adding upwards, with some shifts on the x axis... maybe 5 segments to start with
+				// geometry.vertices.push(  new THREE.Vector3(0,10,0) );
+				// geometry.vertices.push(  new THREE.Vector3(4,20,0) );
+				// geometry.vertices.push(  new THREE.Vector3(2,30,0) );
+				var mm = new THREE.MeshBasicMaterial( { color: 0x55ff55, wireframeLinewidth: 40, alpha: .5 } );
+				object = new THREE.Line( geometry );//Maybe add more segments ja ja 
+				
+				
+				theObject = object;
+				
+				parentTransform = new THREE.Object3D();
+				parentTransform.add(object);
+				
+				var geometry = new THREE.PlaneGeometry( 200, 200, 32 );
+				var material = new THREE.MeshBasicMaterial( {color: 0xbbbbbb, side: THREE.DoubleSide} );
+				plane = new THREE.Mesh( geometry, material );
+				plane.position.z = 5;
+				parentTransform.add(plane);
+				
+				///adding thing...
+
+
+
+				
+
+
+
+				scene.add( parentTransform );
+
+				raycaster = new THREE.Raycaster();
+				raycaster.linePrecision = 3;
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setClearColor( 0xf0f0f0 );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				container.appendChild(renderer.domElement);
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				container.appendChild( stats.domElement );
+
+				document.addEventListener( 'mousemove', onDocumentMouseMove, false );
+
+				//
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function onWindowResize() {
+
+				camera.aspect = window.innerWidth / window.innerHeight;
+				camera.updateProjectionMatrix();
+
+				renderer.setSize( window.innerWidth, window.innerHeight );
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				event.preventDefault();
+
+				mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+				repositionThing();//not sure goes here..
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				theta += 0.1;
+
+				// camera.position.x = radius * Math.sin( THREE.Math.degToRad( theta ) );
+				// camera.position.y = radius * Math.sin( THREE.Math.degToRad( theta ) );
+				// camera.position.z = radius * Math.cos( THREE.Math.degToRad( theta ) );
+				// camera.position.x = -10;
+				// camera.position.y = -10;
+				//camera.position.z = radius*2*theta*.1;
+				camera.position.z = - 100;
+				camera.lookAt( scene.position );
+
+				camera.updateMatrixWorld();
+
+				// find intersections
+
+				raycaster.setFromCamera( mouse, camera );
+
+				//var intersects = raycaster.intersectObjects( parentTransform.children, true);
+				var intersects = raycaster.intersectObject( plane, true);
+				
+
+				if ( intersects.length > 0 ) {
+
+					if ( currentIntersected !== undefined ) {
+
+						currentIntersected.material.linewidth = 1;
+
+					}
+
+					currentIntersected = intersects[ 0 ].object;
+					currentIntersected.material.linewidth = 5;
+
+					sphereInter.visible = true;
+					sphereInter.position.copy( intersects[ 0 ].point );
+					sphereInter.position.z = 0;
+
+				} else {
+
+					if ( currentIntersected !== undefined ) {
+
+						currentIntersected.material.linewidth = 1;
+
+					}
+
+					currentIntersected = undefined;
+
+					sphereInter.visible = false;
+
+				}
+				sphereInter.visible = true;
+
+				renderer.render( scene, camera );
+
+			}
+			init();
+			animate();
+
+
+		</script>
+
+	</body>
+</html>
