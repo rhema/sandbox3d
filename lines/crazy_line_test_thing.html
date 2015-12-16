@@ -23,6 +23,30 @@
 
 		<script>
 
+			var worker = 0;
+			var bgworkerinit = function()
+			{
+				if(typeof(Worker) !== "undefined") {
+				    // Yes! Web worker support!
+				    // Some code.....
+				    console.log("We can use web workers");
+				     worker = new Worker('aworker.js');
+				     
+				     worker.addEventListener('message', function(e) {
+					  //console.log('Worker said: ', e.data);
+					  tada = e.data;//only 1 and it sucks
+					  busy = 0;
+					}, false);
+
+
+				} else {
+					console.log("We can't use web workers...");
+				}
+
+			};
+			
+			bgworkerinit();
+			
 			var container, stats;
 			var camera, scene, raycaster, renderer, parentTransform, sphereInter;
 
@@ -30,6 +54,7 @@
 			var radius = 100, theta = 0;
 
 			var currentIntersected;
+			var busy = 0;
 
 			
 			function oldInit()
@@ -101,8 +126,8 @@
 				
 			}
 			
-			var totalSegments = 20;
-			var lengthPerSegment = 5;
+			var totalSegments = 35;
+			var lengthPerSegment = 4;
 			// var waitTil = 20;
 			var segmentRotations = [];//start with 0s...
 			for(var i=0;i<totalSegments; i+=1)
@@ -120,62 +145,50 @@
 				// theObject.material.color.r = .5;
 				// theObject.material.color.b = .5;
 				oldRotations = segmentRotations;
-				var costfunc = function(segmentRotations)
-				{
-					//also add error for changes in other positions..
-					
-					var angleGross = 0;
-					
-					error = 0;
-					serr = 0;
-					anew = 0;
-					var x=theObject.geometry.vertices[0].x;
-					var y=theObject.geometry.vertices[0].y;
-					var trot = 0;
-					
-					
-					for(var i=0;i<totalSegments; i+=1)
-					{
-						rot = segmentRotations[i];
-						if(i != 0)
-						{
-							angleGross += Math.abs(rot - segmentRotations[i-1]);
-							 
-						} 
-						anew +  (segmentRotations[i] - oldRotations[i])*(segmentRotations[i] - oldRotations[i]);
-						trot += rot;
-						x += Math.sin(trot)*lengthPerSegment;
-						y += Math.cos(trot)*lengthPerSegment;
-						
-						//error += Math.abs( theObject.geometry.vertices[i+1].x - x );
-						//error += Math.abs( theObject.geometry.vertices[i+1].y - y );
-						xerr = Math.abs( theObject.geometry.vertices[i+1].x - x );
-						yerr = Math.abs( theObject.geometry.vertices[i+1].y - y );
-						serr += (xerr*xerr + yerr*yerr);
-					}
-					
-					xerr = Math.abs( sphereInter.position.x - x );
-					yerr = Math.abs( sphereInter.position.y - y );
-					gerr = (xerr*xerr + yerr*yerr);
-					error = gerr*5 + serr*.1 + angleGross*.1+anew*0;
-					
-					return error;
-				}; //compare x of end with mouse...
+				
+				 //compare x of end with mouse...
 				//optimjs.minimize_Powell
 				//
 				// if(icount % waitTil == 0)
 				var diff_diff = 0;
-				for(var i=0;i<totalSegments; i+=1)
-				{
-					diff_diff += Math.abs( tada[i] - segmentRotations[i]);
-				}
+				//for(var i=0;i<totalSegments; i+=1)
+				//{
+				//	diff_diff += Math.abs( tada[i] - segmentRotations[i]);
+				//}
+				
+				
+				
+
+				
+				
+				
 				
 				if(diff_diff < 5)
-					tada = optimjs.minimize_Powell(costfunc,segmentRotations)['argument'];
+				{
+					if(worker)//some kinf of lock...
+					{
+						var x=theObject.geometry.vertices[0].x;
+						var y=theObject.geometry.vertices[0].y;
+						  
+						  	
+						//costfunc mayyybe... maybe not.
+						if(busy == 0)
+						{
+							var todata = [x,y,sphereInter.position.x,sphereInter.position.y,totalSegments,lengthPerSegment,segmentRotations,theObject.geometry.vertices];
+						 	worker.postMessage( todata );
+						 	busy = 1;
+						}
+					}
+					
+					//should send message here... instead of threading...
+					//
+					//
+					//
+				}
 				
 				for(var i=0;i<totalSegments; i+=1)
 				{
-					segmentRotations[i] = tada[i]*.05 + segmentRotations[i]*.95;
+					segmentRotations[i] = tada[i]*.2 + segmentRotations[i]*.8;
 				}
      		 	
 			

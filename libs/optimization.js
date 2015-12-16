@@ -18,13 +18,13 @@ var optimjs = (function (exports) {
         var convergence = false;
         var x = x0.slice(); // make copy of initialization
         // var alpha = 0.001; // scaling factor
-        var alpha = 0.0001; // scaling factor
+        var alpha = 0.00001; // scaling factor
 
         var pfx = Math.exp(10);
         var fx = fnc(x);
         var pidx = 1;
         
-        var maxmax = 100;
+        var maxmax = 5;
         var mm=0;
         while (!convergence && mm < maxmax) {
         	mm+=1;
